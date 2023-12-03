@@ -1,0 +1,73 @@
+import numpy as np
+import pandas as pd
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import Perceptron
+from sklearn.metrics import accuracy_score
+
+# Load data
+train_data = pd.read_csv('/kaggle/input/hivprogression/training_data.csv')
+test_data = pd.read_csv('/kaggle/input/hivprogression/test_data.csv')
+
+# One-hot encoding for categorical variables
+train_data = pd.get_dummies(train_data, columns=['PR Seq', 'RT Seq'], drop_first=True)
+test_data = pd.get_dummies(test_data, columns=['PR Seq', 'RT Seq'], drop_first=True)
+
+# Data exploration
+print(train_data.head())
+print(test_data.head())
+
+# Data analysis and visualization
+sns.histplot(data=train_data, x='VL-t0', hue='Resp', bins=30, multiple='stack')
+plt.show()
+
+sns.histplot(data=train_data, x='CD4-t0', hue='Resp', bins=30, multiple='stack')
+plt.show()
+
+# Check for missing values
+print(test_data.isnull().sum())
+print(train_data.isnull().sum())
+
+# Correlation heatmap
+corr_data = train_data.corr()
+sns.heatmap(data=corr_data, annot=True, cmap="YlGnBu")
+plt.show()
+
+# Model training and evaluation
+X = train_data.drop(columns=['Resp'])
+y = train_data['Resp']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=3)
+
+classifiers = [
+    ('KNN', KNeighborsClassifier()),
+    ('Random Forest', RandomForestClassifier(n_estimators=100, random_state=42)),
+    ('SVC', SVC()),
+    ('Gaussian Naive Bayes', GaussianNB()),
+    ('Perceptron', Perceptron())
+]
+
+for name, model in classifiers:
+    model.fit(X_train, y_train)
+    predicted = model.predict(X_test)
+    acc = accuracy_score(y_test, predicted)
+    print(f'{name}: {acc:.4f}')
+
+# Final model for submission
+final_model = RandomForestClassifier(n_estimators=100, random_state=42)
+final_model.fit(X, y)
+
+# Make predictions on the submission data
+submission_predictions = final_model.predict(test_data)
+
+# Create submission file
+submissions = pd.DataFrame({
+    'PatientID': np.arange(1, submission_predictions.shape[0] + 1),
+    'ResponderStatus': submission_predictions
+})
+submissions.to_csv('submission.csv', index=False)
